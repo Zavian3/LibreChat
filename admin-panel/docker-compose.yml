@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  admin-panel:
+    build: .
+    container_name: librechat-admin-panel
+    ports:
+      - "3001:3001"
+    environment:
+      - ADMIN_PORT=3001
+      - MONGO_URI=mongodb://chat-mongodb:27017/LibreChat
+      - ADMIN_USERNAME=admin@ai.180marketing.com
+      - ADMIN_PASSWORD=adminPass@180ai
+      - ADMIN_SESSION_SECRET=librechat-admin-panel-secret-key-2024
+    networks:
+      - librechat_default
+    restart: unless-stopped
+
+networks:
+  librechat_default:
+    external: true
+
