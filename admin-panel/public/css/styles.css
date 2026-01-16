@@ -332,6 +332,23 @@ body {
     border-color: var(--marketing-green);
 }
 
+.filter-select {
+    padding: 0.625rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.95rem;
+    min-width: 200px;
+    background: var(--surface);
+    color: var(--text-primary);
+    cursor: pointer;
+    margin-right: 0.5rem;
+}
+
+.filter-select:focus {
+    outline: none;
+    border-color: var(--marketing-green);
+}
+
 /* Stats Cards */
 .stats-cards {
     display: grid;

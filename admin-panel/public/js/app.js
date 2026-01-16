@@ -5,7 +5,13 @@ const state = {
     currentPage: 1,
     currentView: 'overview',
     collections: [],
-    searchTerm: ''
+    searchTerm: '',
+    userNameFilter: '',
+    conversationIdFilter: '',
+    timePeriod: '30days',
+    users: [],
+    currentConversationDocs: null,
+    conversations: []
 };
 
 // API helper
@@ -80,6 +86,22 @@ const api = {
 
     async getStats() {
         return this.request('/api/stats');
+    },
+
+    async getUsers() {
+        return this.request('/api/users/names');
+    },
+
+    async getEnhancedConversations(page = 1, limit = 20, search = '', userName = '') {
+        return this.request(`/api/conversations/enhanced?page=${page}&limit=${limit}&search=${search}&userName=${encodeURIComponent(userName)}`);
+    },
+
+    async getEnhancedMessages(page = 1, limit = 20, search = '', userName = '', conversationId = '') {
+        return this.request(`/api/messages/enhanced?page=${page}&limit=${limit}&search=${search}&userName=${encodeURIComponent(userName)}&conversationId=${encodeURIComponent(conversationId)}`);
+    },
+
+    async getEnhancedUsers(page = 1, limit = 20, search = '', timePeriod = '30days') {
+        return this.request(`/api/users/enhanced?page=${page}&limit=${limit}&search=${search}&timePeriod=${timePeriod}`);
     }
 };
 
@@ -215,20 +237,109 @@ async function viewCollection(collectionName) {
     state.currentCollection = collectionName;
     state.currentPage = 1;
     state.searchTerm = '';
+    state.userNameFilter = '';
+    state.conversationIdFilter = '';
+    state.timePeriod = '30days';
     
     document.getElementById('collection-title').textContent = collectionName;
     document.getElementById('search-input').value = '';
+    
+    const userFilterDropdown = document.getElementById('user-name-filter');
+    const conversationFilterDropdown = document.getElementById('conversation-id-filter');
+    const timePeriodFilterDropdown = document.getElementById('time-period-filter');
+    
+    // Show/hide filters based on collection type
+    if (collectionName === 'users') {
+        // Users view: show time period filter only
+        timePeriodFilterDropdown.style.display = 'block';
+        userFilterDropdown.style.display = 'none';
+        conversationFilterDropdown.style.display = 'none';
+        timePeriodFilterDropdown.value = '30days'; // Reset to default
+    } else if (collectionName === 'conversations') {
+        // Conversations view: show user filter
+        timePeriodFilterDropdown.style.display = 'none';
+        userFilterDropdown.style.display = 'block';
+        conversationFilterDropdown.style.display = 'none';
+        // Load users for the dropdown
+        try {
+            state.users = await api.getUsers();
+            populateUserFilter();
+        } catch (error) {
+            console.error('Error loading users:', error);
+        }
+    } else if (collectionName === 'messages') {
+        // Messages view: show user and conversation filters
+        timePeriodFilterDropdown.style.display = 'none';
+        userFilterDropdown.style.display = 'block';
+        conversationFilterDropdown.style.display = 'block';
+        // Load users and conversations for dropdowns
+        try {
+            state.users = await api.getUsers();
+            populateUserFilter();
+            // Load conversations for conversation filter
+            await loadConversationsForFilter();
+        } catch (error) {
+            console.error('Error loading filters:', error);
+        }
+    } else {
+        // Other collections: hide all filters
+        timePeriodFilterDropdown.style.display = 'none';
+        userFilterDropdown.style.display = 'none';
+        conversationFilterDropdown.style.display = 'none';
+    }
     
     ui.showView('collection-view');
     await loadCollectionData();
 }
 
+// Populate user filter dropdown
+function populateUserFilter() {
+    const userFilterDropdown = document.getElementById('user-name-filter');
+    userFilterDropdown.innerHTML = '<option value="">All Users</option>';
+    
+    state.users.forEach(user => {
+        const option = document.createElement('option');
+        option.value = user.name || user.username || user.email;
+        option.textContent = user.name || user.username || user.email || 'Unknown';
+        userFilterDropdown.appendChild(option);
+    });
+}
+
+// Load conversations for filter dropdown
+async function loadConversationsForFilter() {
+    try {
+        // Load conversations filtered by selected user if any
+        const userName = state.userNameFilter || '';
+        const data = await api.getEnhancedConversations(1, 100, '', userName);
+        state.conversations = data.documents;
+        populateConversationFilter();
+    } catch (error) {
+        console.error('Error loading conversations:', error);
+    }
+}
+
+// Populate conversation filter dropdown
+function populateConversationFilter() {
+    const conversationFilterDropdown = document.getElementById('conversation-id-filter');
+    conversationFilterDropdown.innerHTML = '<option value="">All Conversations</option>';
+    
+    state.conversations.forEach(conv => {
+        const option = document.createElement('option');
+        option.value = conv.conversationId;
+        const title = conv.title || 'Untitled';
+        const truncatedTitle = title.length > 40 ? title.substring(0, 37) + '...' : title;
+        option.textContent = `${truncatedTitle} (${conv.userName})`;
+        conversationFilterDropdown.appendChild(option);
+    });
+}
+
 // Get display fields for different collection types
 function getCollectionFields(collectionName) {
     const fieldMap = {
-        users: ['_id', 'name', 'username', 'email', 'role', 'createdAt'],
-        conversations: ['_id', 'title', 'userName', 'endpoint', 'model', 'createdAt', 'updatedAt'],
-        messages: ['_id', 'sender', 'text', 'userName', 'conversationId', 'createdAt', 'tokenCount'],
+        users: ['_id', 'name', 'username', 'email', 'role', 'tokensUsed', 'createdAt'],
+        conversations: ['_id', 'title', 'userName', 'model', 'messageCount', 'totalInputTokens', 'totalOutputTokens', 'totalCost', 'createdAt'],
+        messages: ['conversationId', 'userName', 'model', 'text', 'tokenCount', 'cost', 'createdAt'],
+        files: ['_id', 'filename', 'userName', 'type', 'bytes', 'conversationId', 'source', 'usage', 'createdAt'],
         sessions: ['_id', 'userName', 'userEmail', 'expiration'],
         balances: ['_id', 'userName', 'userEmail', 'tokenCredits', 'autoRefillEnabled', 'lastRefill'],
         transactions: ['_id', 'userName', 'conversationId', 'tokenType', 'model', 'rawAmount', 'createdAt'],
@@ -249,6 +360,20 @@ function getCollectionFields(collectionName) {
 // Format field value for display
 function formatFieldValue(value, fieldName) {
     if (value === null || value === undefined) return '-';
+    
+    // Format cost as currency
+    if (fieldName === 'totalCost' || fieldName === 'cost') {
+        const cost = typeof value === 'number' ? value : parseFloat(value);
+        if (isNaN(cost)) return '-';
+        return '$' + cost.toFixed(6);
+    }
+    
+    // Format bytes as file size
+    if (fieldName === 'bytes') {
+        const bytes = typeof value === 'number' ? value : parseFloat(value);
+        if (isNaN(bytes)) return '-';
+        return ui.formatBytes(bytes);
+    }
     
     // Format dates
     if (fieldName.includes('At') || fieldName.includes('expiration')) {
@@ -298,16 +423,47 @@ async function loadCollectionData() {
         const thead = document.getElementById('table-headers');
         tbody.innerHTML = '<tr><td colspan="10" class="loading">Loading...</td></tr>';
         
-        const data = await api.getCollection(
-            state.currentCollection,
-            state.currentPage,
-            20,
-            state.searchTerm
-        );
+        let data;
+        // Use enhanced endpoints for specific collections
+        if (state.currentCollection === 'conversations') {
+            data = await api.getEnhancedConversations(
+                state.currentPage,
+                20,
+                state.searchTerm,
+                state.userNameFilter
+            );
+        } else if (state.currentCollection === 'messages') {
+            data = await api.getEnhancedMessages(
+                state.currentPage,
+                20,
+                state.searchTerm,
+                state.userNameFilter,
+                state.conversationIdFilter
+            );
+        } else if (state.currentCollection === 'users') {
+            data = await api.getEnhancedUsers(
+                state.currentPage,
+                20,
+                state.searchTerm,
+                state.timePeriod
+            );
+        } else {
+            data = await api.getCollection(
+                state.currentCollection,
+                state.currentPage,
+                20,
+                state.searchTerm
+            );
+        }
         
         if (data.documents.length === 0) {
             tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:2rem;color:var(--text-secondary)">No documents found</td></tr>';
             return;
+        }
+        
+        // Store conversation documents for viewing initial prompts
+        if (state.currentCollection === 'conversations') {
+            state.currentConversationDocs = data.documents;
         }
         
         // Get fields to display for this collection
@@ -324,10 +480,20 @@ async function loadCollectionData() {
             'lastRefill': 'Last Refill',
             'createdAt': 'Created',
             'updatedAt': 'Updated',
-            'conversationId': 'Conversation',
+            'conversationId': 'Conversation ID',
             'tokenType': 'Token Type',
             'rawAmount': 'Amount',
             'tokenCount': 'Tokens',
+            'totalInputTokens': 'Input Tokens',
+            'totalOutputTokens': 'Output Tokens',
+            'totalCost': 'Total Cost',
+            'messageCount': 'Messages',
+            'cost': 'Cost',
+            'tokensUsed': 'Tokens Used',
+            'filename': 'File Name',
+            'bytes': 'Size',
+            'source': 'Source',
+            'usage': 'Usage Count',
             'expiration': 'Expires',
             'accessRoleId': 'Role ID',
             'resourceType': 'Resource',
@@ -396,6 +562,35 @@ document.getElementById('search-input').addEventListener('input', (e) => {
     }, 500);
 });
 
+// User name filter handler
+document.getElementById('user-name-filter').addEventListener('change', async (e) => {
+    state.userNameFilter = e.target.value;
+    state.currentPage = 1;
+    
+    // If in messages view, reload conversation filter to show only selected user's conversations
+    if (state.currentCollection === 'messages') {
+        state.conversationIdFilter = ''; // Reset conversation filter
+        document.getElementById('conversation-id-filter').value = '';
+        await loadConversationsForFilter();
+    }
+    
+    loadCollectionData();
+});
+
+// Conversation ID filter handler
+document.getElementById('conversation-id-filter').addEventListener('change', (e) => {
+    state.conversationIdFilter = e.target.value;
+    state.currentPage = 1;
+    loadCollectionData();
+});
+
+// Time period filter handler
+document.getElementById('time-period-filter').addEventListener('change', (e) => {
+    state.timePeriod = e.target.value;
+    state.currentPage = 1;
+    loadCollectionData();
+});
+
 // Pagination handlers
 document.getElementById('prev-page').addEventListener('click', () => {
     if (state.currentPage > 1) {
@@ -409,18 +604,24 @@ document.getElementById('next-page').addEventListener('click', () => {
     loadCollectionData();
 });
 
-// Add document
-document.getElementById('add-document-btn').addEventListener('click', () => {
-    document.getElementById('modal-title').textContent = 'Add New Document';
-    document.getElementById('document-editor').value = '{\n  \n}';
-    document.getElementById('save-btn').onclick = createNewDocument;
-    document.getElementById('delete-btn').style.display = 'none';
-    ui.showModal('document-modal');
-});
-
 // View document
 async function viewDocument(id) {
     try {
+        // For conversations, show the initial prompt prominently
+        if (state.currentCollection === 'conversations') {
+            const doc = state.currentConversationDocs?.find(d => d._id === id);
+            if (doc && doc.initialPrompt) {
+                document.getElementById('modal-title').textContent = 'Initial User Prompt';
+                document.getElementById('document-editor').value = doc.initialPrompt;
+                document.getElementById('document-editor').readOnly = true;
+                document.getElementById('save-btn').style.display = 'none';
+                document.getElementById('delete-btn').style.display = 'none';
+                ui.showModal('document-modal');
+                return;
+            }
+        }
+        
+        // For other collections or if initial prompt not available, show full document
         const doc = await api.getDocument(state.currentCollection, id);
         document.getElementById('modal-title').textContent = 'View Document';
         document.getElementById('document-editor').value = JSON.stringify(doc, null, 2);

@@ -62,8 +62,18 @@
                     <div class="view-header">
                         <h2 id="collection-title">Collection</h2>
                         <div class="view-actions">
+                            <select id="time-period-filter" class="filter-select" style="display:none;">
+                                <option value="24hours">Last 24 Hours</option>
+                                <option value="30days" selected>Last 30 Days</option>
+                                <option value="90days">Last 90 Days</option>
+                            </select>
+                            <select id="user-name-filter" class="filter-select" style="display:none;">
+                                <option value="">All Users</option>
+                            </select>
+                            <select id="conversation-id-filter" class="filter-select" style="display:none;">
+                                <option value="">All Conversations</option>
+                            </select>
                             <input type="text" id="search-input" class="search-input" placeholder="Search...">
-                            <button id="add-document-btn" class="btn btn-primary">Add Document</button>
                         </div>
                     </div>
                     

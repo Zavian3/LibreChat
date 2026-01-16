@@ -1,5 +1,73 @@
 # Admin Panel Changelog
 
+## [1.2.0] - 2026-01-16
+
+### Enhanced Conversations Report
+
+**Major New Features:**
+
+1. **User Name Filtering**
+   - New dropdown filter to view conversations by specific user
+   - Shows all users sorted by name
+   - "All Users" option to clear filter
+   - Only visible when viewing conversations
+
+2. **Enhanced Table Columns**
+   - **Removed:** endpoint, updated columns (less clutter)
+   - **Added:** Input Tokens, Estimated Cost columns
+   - **Kept:** ID, Title, User Name, Model, Created
+
+3. **Initial Prompt Display**
+   - Click "View" to see the actual initial user prompt
+   - Clean text display (no JSON clutter)
+   - Modal titled "Initial User Prompt" for clarity
+   - Shows exactly what the user typed to start the conversation
+
+4. **Cost Calculation**
+   - Real-time cost estimation based on input tokens
+   - Uses official LibreChat pricing from `api/models/tx.js`
+   - Supports all AI providers (OpenAI, Anthropic, Google, etc.)
+   - Displays cost in USD with 6 decimal precision
+   - Formula: (tokens / 1,000,000) × model rate
+
+5. **Smart Sorting**
+   - Conversations now sorted by most recent first (default)
+   - Shows newest activity at the top
+   - Helps track current team usage patterns
+
+**Technical Improvements:**
+
+- New backend endpoint: `GET /api/conversations/enhanced`
+  - MongoDB aggregation for efficient queries
+  - Joins conversations, users, and messages collections
+  - Calculates tokens and costs on-the-fly
+  
+- New backend endpoint: `GET /api/users/names`
+  - Provides user list for filter dropdown
+  - Sorted alphabetically for easy selection
+
+- Frontend state management for filters
+- Responsive filter dropdown styling
+- Performance optimized with pagination
+
+**Use Cases:**
+
+- Monitor what prompts team members are using
+- Identify inefficient prompts with high token usage
+- Track costs per conversation
+- Filter by user to review individual usage
+- Audit prompt quality across the team
+
+**Benefits:**
+
+- Better visibility into team AI usage
+- Cost tracking at conversation level
+- Quality control for prompts
+- Easier to identify wasteful context usage
+- Professional, focused reporting
+
+---
+
 ## [1.1.0] - 2026-01-09
 
 ### Improved - Better Data Display
