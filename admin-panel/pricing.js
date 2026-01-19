@@ -62,6 +62,7 @@ const tokenValues = {
   'claude-sonnet-4': { prompt: 3, completion: 15 },
   'claude-opus-4': { prompt: 15, completion: 75 },
   'claude-opus-4-5': { prompt: 5, completion: 25 },
+  'claude-sonnet-4-5': { prompt: 3, completion: 15 },
   'claude-haiku-4-5': { prompt: 1, completion: 5 },
   
   // Gemini models
@@ -76,8 +77,9 @@ const tokenValues = {
   'gemini-2.5-pro': { prompt: 1.25, completion: 10 },
   'gemini-2.5-flash-image': { prompt: 0.15, completion: 30 },
   'gemini-3': { prompt: 2, completion: 12 },
+  'gemini-3-pro-preview': { prompt: 2, completion: 12 },
   'gemini-3-pro-image': { prompt: 2, completion: 120 },
-  'gemini-3-flash-preview': { prompt: 0.5, completion: 1.5 },
+  'gemini-3-flash-preview': { prompt: 0.5, completion: 3 },
   'gemini-pro-vision': { prompt: 0.5, completion: 1.5 },
   
   // Grok models
@@ -103,6 +105,12 @@ const tokenValues = {
   'pixtral-large': { prompt: 2.0, completion: 6.0 },
   'mistral-large': { prompt: 2.0, completion: 6.0 },
   'mixtral-8x22b': { prompt: 0.65, completion: 0.65 },
+  
+  // Perplexity Sonar models
+  sonar: { prompt: 1, completion: 1 },
+  'sonar-pro': { prompt: 3, completion: 15 },
+  'sonar-reasoning-pro': { prompt: 2, completion: 8 },
+  'sonar-deep-research': { prompt: 2, completion: 8 },
   
   // Other models
   kimi: { prompt: 0.14, completion: 2.49 },
