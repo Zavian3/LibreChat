@@ -125,7 +125,7 @@ app.get('/api/users/enhanced', requireAuth, async (req, res) => {
     
     const total = await usersCollection.countDocuments(matchQuery);
     
-    // For each user, calculate token usage
+    // For each user, calculate token usage and total cost
     const enhancedUsers = await Promise.all(
       users.map(async (user) => {
         const userId = user._id.toString();
@@ -135,13 +135,32 @@ app.get('/api/users/enhanced', requireAuth, async (req, res) => {
           user: userId,
           ...dateFilter
         }, {
-          projection: { tokenCount: 1 }
+          projection: { tokenCount: 1, isCreatedByUser: 1, model: 1, endpoint: 1 }
         }).toArray();
         
-        // Sum up tokens
-        const tokensUsed = userMessages.reduce((sum, msg) => {
-          return sum + (msg.tokenCount || 0);
-        }, 0);
+        // Sum up tokens and calculate total cost
+        let tokensUsed = 0;
+        let totalCost = 0;
+        
+        userMessages.forEach(msg => {
+          const tokens = msg.tokenCount || 0;
+          tokensUsed += tokens;
+          
+          // Calculate cost for this message
+          if (tokens > 0) {
+            const model = msg.model || 'unknown';
+            const endpoint = msg.endpoint;
+            const tokenType = msg.isCreatedByUser ? 'prompt' : 'completion';
+            
+            const multiplier = getMultiplier({
+              model: model,
+              endpoint: endpoint,
+              tokenType: tokenType
+            });
+            
+            totalCost += (tokens / 1000000) * multiplier;
+          }
+        });
         
         return {
           _id: user._id,
@@ -150,6 +169,7 @@ app.get('/api/users/enhanced', requireAuth, async (req, res) => {
           email: user.email || 'N/A',
           role: user.role || 'user',
           tokensUsed: tokensUsed,
+          totalCost: totalCost,
           createdAt: user.createdAt
         };
       })

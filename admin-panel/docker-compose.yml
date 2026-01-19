@@ -9,8 +9,8 @@ services:
     environment:
       - ADMIN_PORT=3001
       - MONGO_URI=mongodb://chat-mongodb:27017/LibreChat
-      - ADMIN_USERNAME=admin@ai.180marketing.com
-      - ADMIN_PASSWORD=adminPass@180ai
+      - ADMIN_USERNAME=ai-noreply@180marketing.com
+      - ADMIN_PASSWORD=ccTvg7dvbF1RhO
       - ADMIN_SESSION_SECRET=librechat-admin-panel-secret-key-2024
     networks:
       - librechat_default

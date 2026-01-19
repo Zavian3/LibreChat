@@ -336,7 +336,7 @@ function populateConversationFilter() {
 // Get display fields for different collection types
 function getCollectionFields(collectionName) {
     const fieldMap = {
-        users: ['_id', 'name', 'username', 'email', 'role', 'tokensUsed', 'createdAt'],
+        users: ['_id', 'name', 'email', 'role', 'tokensUsed', 'totalCost', 'createdAt'],
         conversations: ['_id', 'title', 'userName', 'model', 'messageCount', 'totalInputTokens', 'totalOutputTokens', 'totalCost', 'createdAt'],
         messages: ['conversationId', 'userName', 'model', 'text', 'tokenCount', 'cost', 'createdAt'],
         files: ['_id', 'filename', 'userName', 'type', 'bytes', 'conversationId', 'source', 'usage', 'createdAt'],
@@ -490,6 +490,7 @@ async function loadCollectionData() {
             'messageCount': 'Messages',
             'cost': 'Cost',
             'tokensUsed': 'Tokens Used',
+            'totalCost': 'Total Cost',
             'filename': 'File Name',
             'bytes': 'Size',
             'source': 'Source',
