@@ -102,6 +102,24 @@ const api = {
 
     async getEnhancedUsers(page = 1, limit = 20, search = '', timePeriod = '30days') {
         return this.request(`/api/users/enhanced?page=${page}&limit=${limit}&search=${search}&timePeriod=${timePeriod}`);
+    },
+
+    async getBalances(page = 1, limit = 20, search = '') {
+        return this.request(`/api/balances?page=${page}&limit=${limit}&search=${search}`);
+    },
+
+    async topUpBalance(userId, amount, reason = '') {
+        return this.request('/api/balances/topup', {
+            method: 'POST',
+            body: JSON.stringify({ userId, amount, reason })
+        });
+    },
+
+    async updateRefillSettings(userId, settings) {
+        return this.request('/api/balances/refill-settings', {
+            method: 'PUT',
+            body: JSON.stringify({ userId, ...settings })
+        });
     }
 };
 
@@ -336,7 +354,7 @@ function populateConversationFilter() {
 // Get display fields for different collection types
 function getCollectionFields(collectionName) {
     const fieldMap = {
-        users: ['_id', 'name', 'email', 'role', 'tokensUsed', 'totalCost', 'createdAt'],
+        users: ['_id', 'name', 'email', 'role', 'lifetimeBalanceDeducted', 'tokenCredits', 'lifetimeCost', 'createdAt'],
         conversations: ['_id', 'title', 'userName', 'model', 'messageCount', 'totalInputTokens', 'totalOutputTokens', 'totalCost', 'createdAt'],
         messages: ['conversationId', 'userName', 'model', 'text', 'tokenCount', 'cost', 'createdAt'],
         files: ['_id', 'filename', 'userName', 'type', 'bytes', 'conversationId', 'source', 'usage', 'createdAt'],
@@ -362,10 +380,51 @@ function formatFieldValue(value, fieldName) {
     if (value === null || value === undefined) return '-';
     
     // Format cost as currency
-    if (fieldName === 'totalCost' || fieldName === 'cost') {
+    if (fieldName === 'totalCost' || fieldName === 'cost' || fieldName === 'lifetimeCost') {
         const cost = typeof value === 'number' ? value : parseFloat(value);
         if (isNaN(cost)) return '-';
         return '$' + cost.toFixed(6);
+    }
+    
+    // Format token credits with 2 decimal places
+    if (fieldName === 'tokenCredits' || fieldName === 'balanceDeducted' || fieldName === 'lifetimeBalanceDeducted') {
+        const credits = typeof value === 'number' ? value : parseFloat(value);
+        if (isNaN(credits)) return '0.00';
+        if (state.currentCollection === 'balances') {
+            return `${credits.toFixed(2)} <small>($${(credits / 1000000).toFixed(4)})</small>`;
+        }
+        return credits.toFixed(2);
+    }
+
+    if (fieldName === 'autoRefillEnabled') {
+        return value ? 'Enabled' : 'Disabled';
+    }
+
+    if (fieldName === 'refillAmount') {
+        if (!value) return 'N/A';
+        const amount = typeof value === 'number' ? value : parseFloat(value);
+        return `$${(amount / 1000000).toFixed(2)}`;
+    }
+
+    if (fieldName === 'lastRefill') {
+        if (!value) return 'Never';
+        try {
+            const date = new Date(value);
+            if (!isNaN(date.getTime())) {
+                return date.toLocaleDateString();
+            }
+        } catch (e) {
+            return 'Never';
+        }
+        return 'Never';
+    }
+
+    if (fieldName === 'userName' && state.currentCollection === 'balances') {
+        return value || 'Unknown';
+    }
+
+    if (fieldName === 'userEmail' && state.currentCollection === 'balances') {
+        return value || 'N/A';
     }
     
     // Format bytes as file size
@@ -389,7 +448,7 @@ function formatFieldValue(value, fieldName) {
     
     // Format booleans
     if (typeof value === 'boolean') {
-        return value ? '✓ Yes' : '✗ No';
+        return value ? 'Yes' : 'No';
     }
     
     // Format numbers
@@ -447,6 +506,12 @@ async function loadCollectionData() {
                 state.searchTerm,
                 state.timePeriod
             );
+        } else if (state.currentCollection === 'balances') {
+            data = await api.getBalances(
+                state.currentPage,
+                20,
+                state.searchTerm
+            );
         } else {
             data = await api.getCollection(
                 state.currentCollection,
@@ -489,8 +554,13 @@ async function loadCollectionData() {
             'totalCost': 'Total Cost',
             'messageCount': 'Messages',
             'cost': 'Cost',
-            'tokensUsed': 'Tokens Used',
-            'totalCost': 'Total Cost',
+            'tokensUsed': 'Tokens Used (Period)',
+            'lifetimeTokens': 'Lifetime Tokens',
+            'balanceDeducted': 'Balance Used (Period)',
+            'lifetimeBalanceDeducted': 'Balance Used (Lifetime)',
+            'tokenCredits': 'Current Balance',
+            'totalCost': 'Cost (Period)',
+            'lifetimeCost': 'Lifetime Cost',
             'filename': 'File Name',
             'bytes': 'Size',
             'source': 'Source',
@@ -509,6 +579,31 @@ async function loadCollectionData() {
         // Build table rows
         tbody.innerHTML = data.documents.map(doc => {
             const id = doc._id;
+            
+            // Special handling for balances collection
+            if (state.currentCollection === 'balances') {
+                const userId = doc.userId || id;
+                const docJson = JSON.stringify(doc).replace(/"/g, '&quot;');
+                return `
+                    <tr>
+                        ${fields.filter(f => f !== 'actions').map(field => {
+                            const value = doc[field];
+                            const displayValue = formatFieldValue(value, field);
+                            return `<td>${displayValue}</td>`;
+                        }).join('')}
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn btn-small btn-primary" onclick='openTopUpModal(${docJson})'>
+                                    Top Up
+                                </button>
+                                <button class="btn btn-small btn-secondary" onclick='openRefillModal(${docJson})'>
+                                    Settings
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }
             
             return `
                 <tr>

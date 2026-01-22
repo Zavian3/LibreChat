@@ -94,6 +94,7 @@ app.get('/api/users/enhanced', requireAuth, async (req, res) => {
     
     const usersCollection = mongoose.connection.db.collection('users');
     const messagesCollection = mongoose.connection.db.collection('messages');
+    const balancesCollection = mongoose.connection.db.collection('balances');
     
     // Calculate time filter
     let dateFilter = {};
@@ -130,25 +131,55 @@ app.get('/api/users/enhanced', requireAuth, async (req, res) => {
       users.map(async (user) => {
         const userId = user._id.toString();
         
-        // Get all messages from this user in the time period
+        // Get balance information
+        const balance = await balancesCollection.findOne({
+          user: user._id
+        });
+        
+        // Get messages from this user in the time period (for filtered stats)
         const userMessages = await messagesCollection.find({
           user: userId,
           ...dateFilter
         }, {
-          projection: { tokenCount: 1, isCreatedByUser: 1, model: 1, endpoint: 1 }
-        }).toArray();
+          projection: { tokenCount: 1, isCreatedByUser: 1, model: 1, endpoint: 1, messageId: 1, parentMessageId: 1 }
+        }).sort({ createdAt: 1 }).toArray();
         
-        // Sum up tokens and calculate total cost
+        // Get ALL messages from this user (for lifetime stats)
+        const allUserMessages = await messagesCollection.find({
+          user: userId
+        }, {
+          projection: { tokenCount: 1, isCreatedByUser: 1, model: 1, endpoint: 1, messageId: 1, parentMessageId: 1 }
+        }).sort({ createdAt: 1 }).toArray();
+        
+        // Create message lookup map for inferring models
+        const messageMap = new Map();
+        userMessages.forEach(msg => messageMap.set(msg.messageId, msg));
+        
+        // Sum up tokens and calculate total cost (for time period)
         let tokensUsed = 0;
         let totalCost = 0;
+        let balanceDeducted = 0; // Actual tokenCredits deducted
         
         userMessages.forEach(msg => {
           const tokens = msg.tokenCount || 0;
           tokensUsed += tokens;
           
-          // Calculate cost for this message
-          if (tokens > 0) {
-            const model = msg.model || 'unknown';
+          // Determine the model for this message
+          let model = msg.model;
+          
+          // If user message has no model, infer it from the AI's response
+          if (!model && msg.isCreatedByUser) {
+            // Find the AI response (child message where this message is the parent)
+            const aiResponse = userMessages.find(m => 
+              !m.isCreatedByUser && m.parentMessageId === msg.messageId
+            );
+            if (aiResponse && aiResponse.model) {
+              model = aiResponse.model;
+            }
+          }
+          
+          // Calculate cost and balance deduction for this message
+          if (tokens > 0 && model) {
             const endpoint = msg.endpoint;
             const tokenType = msg.isCreatedByUser ? 'prompt' : 'completion';
             
@@ -158,9 +189,58 @@ app.get('/api/users/enhanced', requireAuth, async (req, res) => {
               tokenType: tokenType
             });
             
+            // Cost in USD
             totalCost += (tokens / 1000000) * multiplier;
+            
+            // Balance deduction (tokenValue = rawAmount * multiplier)
+            balanceDeducted += tokens * multiplier;
           }
         });
+        
+        // Calculate lifetime tokens and cost
+        let lifetimeTokens = 0;
+        let lifetimeCost = 0;
+        let lifetimeBalanceDeducted = 0; // Actual tokenCredits deducted lifetime
+        
+        allUserMessages.forEach(msg => {
+          const tokens = msg.tokenCount || 0;
+          lifetimeTokens += tokens;
+          
+          // Determine the model for this message
+          let model = msg.model;
+          
+          // If user message has no model, infer it from the AI's response
+          if (!model && msg.isCreatedByUser) {
+            // Find the AI response (child message where this message is the parent)
+            const aiResponse = allUserMessages.find(m => 
+              !m.isCreatedByUser && m.parentMessageId === msg.messageId
+            );
+            if (aiResponse && aiResponse.model) {
+              model = aiResponse.model;
+            }
+          }
+          
+          // Calculate cost and balance deduction
+          if (tokens > 0 && model) {
+            const endpoint = msg.endpoint;
+            const tokenType = msg.isCreatedByUser ? 'prompt' : 'completion';
+            
+            const multiplier = getMultiplier({
+              model: model,
+              endpoint: endpoint,
+              tokenType: tokenType
+            });
+            
+            // Cost in USD
+            lifetimeCost += (tokens / 1000000) * multiplier;
+            
+            // Balance deduction (tokenValue = rawAmount * multiplier)
+            lifetimeBalanceDeducted += tokens * multiplier;
+          }
+        });
+        
+        // Get token credits directly from balance
+        const tokenCredits = balance?.tokenCredits || 0;
         
         return {
           _id: user._id,
@@ -169,7 +249,12 @@ app.get('/api/users/enhanced', requireAuth, async (req, res) => {
           email: user.email || 'N/A',
           role: user.role || 'user',
           tokensUsed: tokensUsed,
+          lifetimeTokens: lifetimeTokens,
+          balanceDeducted: balanceDeducted,
+          lifetimeBalanceDeducted: lifetimeBalanceDeducted,
           totalCost: totalCost,
+          lifetimeCost: lifetimeCost,
+          tokenCredits: tokenCredits,
           createdAt: user.createdAt
         };
       })
@@ -442,19 +527,49 @@ app.get('/api/messages/enhanced', requireAuth, async (req, res) => {
     const messages = result[0].data;
     const total = result[0].metadata[0]?.total || 0;
     
+    // Get all messages in the displayed conversations to infer models
+    const conversationIds = [...new Set(messages.map(m => m.conversationId))];
+    const allConvMessages = await messagesCollection.find(
+      { conversationId: { $in: conversationIds } },
+      { projection: { messageId: 1, parentMessageId: 1, model: 1, conversationId: 1, isCreatedByUser: 1 } }
+    ).toArray();
+    
+    // Create lookup map
+    const messageModelMap = new Map();
+    allConvMessages.forEach(m => {
+      messageModelMap.set(m.messageId, m);
+    });
+    
     // Calculate cost for each message
     const enhancedMessages = messages.map(msg => {
       const tokens = msg.tokenCount || 0;
-      const model = msg.model || 'unknown';
+      let model = msg.model;
       const endpoint = msg.endpoint;
       const isUserMessage = msg.isCreatedByUser;
       
+      // Infer model from AI response if user message has no model
+      if (!model && isUserMessage && msg.messageId) {
+        const aiResponse = allConvMessages.find(m => 
+          !m.isCreatedByUser && 
+          m.parentMessageId === msg.messageId &&
+          m.conversationId === msg.conversationId
+        );
+        if (aiResponse && aiResponse.model) {
+          model = aiResponse.model + ' (inferred)';
+        } else {
+          model = 'unknown';
+        }
+      } else if (!model) {
+        model = 'unknown';
+      }
+      
       // Calculate cost based on message type
       let cost = 0;
-      if (tokens > 0 && model) {
+      if (tokens > 0 && model && model !== 'unknown') {
+        const cleanModel = model.replace(' (inferred)', '');
         const tokenType = isUserMessage ? 'prompt' : 'completion';
         const multiplier = getMultiplier({
-          model: model,
+          model: cleanModel,
           endpoint: endpoint,
           tokenType: tokenType
         });
@@ -683,6 +798,152 @@ app.get('/api/stats', requireAuth, async (req, res) => {
 // Serve index.html for root
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Balance Management API Endpoints
+
+// Get all balances with user info
+app.get('/api/balances', requireAuth, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    const search = req.query.search || '';
+
+    const balancesCollection = mongoose.connection.db.collection('balances');
+
+    // Build aggregation pipeline
+    const pipeline = [
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user',
+          foreignField: '_id',
+          as: 'userInfo'
+        }
+      },
+      {
+        $unwind: {
+          path: '$userInfo',
+          preserveNullAndEmptyArrays: true
+        }
+      }
+    ];
+
+    if (search) {
+      pipeline.push({
+        $match: {
+          $or: [
+            { 'userInfo.name': { $regex: search, $options: 'i' } },
+            { 'userInfo.email': { $regex: search, $options: 'i' } }
+          ]
+        }
+      });
+    }
+
+    pipeline.push(
+      { $sort: { 'userInfo.name': 1 } },
+      {
+        $facet: {
+          metadata: [{ $count: 'total' }],
+          data: [{ $skip: skip }, { $limit: limit }]
+        }
+      }
+    );
+
+    const result = await balancesCollection.aggregate(pipeline).toArray();
+    const balances = result[0].data;
+    const total = result[0].metadata[0]?.total || 0;
+
+    const formattedBalances = balances.map(balance => ({
+      _id: balance._id,
+      userId: balance.user,
+      userName: balance.userInfo?.name || 'Unknown',
+      userEmail: balance.userInfo?.email || 'N/A',
+      tokenCredits: balance.tokenCredits || 0,
+      autoRefillEnabled: balance.autoRefillEnabled || false,
+      refillAmount: balance.refillAmount || 0,
+      refillIntervalValue: balance.refillIntervalValue || 30,
+      refillIntervalUnit: balance.refillIntervalUnit || 'days',
+      lastRefill: balance.lastRefill
+    }));
+
+    res.json({
+      documents: formattedBalances,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
+    });
+  } catch (error) {
+    console.error('Error fetching balances:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Top up balance
+app.post('/api/balances/topup', requireAuth, async (req, res) => {
+  try {
+    const { userId, amount, reason } = req.body;
+    if (!userId || !amount || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid user ID or amount' });
+    }
+
+    const balancesCollection = mongoose.connection.db.collection('balances');
+    const transactionsCollection = mongoose.connection.db.collection('transactions');
+    const userObjectId = mongoose.Types.ObjectId.isValid(userId) 
+      ? new mongoose.Types.ObjectId(userId) : userId;
+
+    const result = await balancesCollection.findOneAndUpdate(
+      { user: userObjectId },
+      { $inc: { tokenCredits: amount } },
+      { returnDocument: 'after', upsert: true }
+    );
+
+    await transactionsCollection.insertOne({
+      user: userObjectId,
+      tokenType: 'credit',
+      context: 'admin_topup',
+      rawAmount: amount,
+      tokenValue: amount,
+      rate: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      note: reason || 'Manual admin top-up',
+      __v: 0
+    });
+
+    res.json({ success: true, newBalance: result.tokenCredits });
+  } catch (error) {
+    console.error('Error topping up:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update refill settings
+app.put('/api/balances/refill-settings', requireAuth, async (req, res) => {
+  try {
+    const { userId, autoRefillEnabled, refillAmount, refillIntervalValue, refillIntervalUnit } = req.body;
+    if (!userId) return res.status(400).json({ error: 'Invalid user ID' });
+
+    const balancesCollection = mongoose.connection.db.collection('balances');
+    const userObjectId = mongoose.Types.ObjectId.isValid(userId) 
+      ? new mongoose.Types.ObjectId(userId) : userId;
+
+    const updateFields = {};
+    if (typeof autoRefillEnabled === 'boolean') updateFields.autoRefillEnabled = autoRefillEnabled;
+    if (refillAmount) updateFields.refillAmount = refillAmount;
+    if (refillIntervalValue) updateFields.refillIntervalValue = refillIntervalValue;
+    if (refillIntervalUnit) updateFields.refillIntervalUnit = refillIntervalUnit;
+
+    await balancesCollection.findOneAndUpdate(
+      { user: userObjectId },
+      { $set: updateFields },
+      { returnDocument: 'after' }
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating settings:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Start server
