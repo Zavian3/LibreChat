@@ -1,20 +1,24 @@
-// Configuration for Admin Panel
-// Edit these values according to your setup
+require('dotenv').config();
+
+const required = (name) => {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+};
 
 module.exports = {
-  // Server Port
-  PORT: process.env.ADMIN_PORT || 3001,
-  
-  // MongoDB Connection
-  // For Docker: use 'chat-mongodb' as hostname
-  // For local: use 'localhost'
+  PORT: Number(process.env.ADMIN_PORT || 3001),
   MONGO_URI: process.env.MONGO_URI || 'mongodb://chat-mongodb:27017/LibreChat',
-  
-  // Admin Credentials (CHANGE THESE IN PRODUCTION!)
-  ADMIN_USERNAME: process.env.ADMIN_USERNAME || 'ai-noreply@180marketing.com',
-  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'ccTvg7dvbF1RhO',
-  
-  // Session Secret (CHANGE THIS IN PRODUCTION!)
-  SESSION_SECRET: process.env.ADMIN_SESSION_SECRET || 'librechat-admin-panel-secret-key-2024'
+  ADMIN_USERNAME: required('ADMIN_USERNAME'),
+  ADMIN_PASSWORD_HASH: required('ADMIN_PASSWORD_HASH'),
+  SESSION_SECRET: required('ADMIN_SESSION_SECRET'),
+  COOKIE_SECURE: process.env.COOKIE_SECURE !== 'false',
+  IMAGES_ROOT: process.env.ADMIN_IMAGES_ROOT || '/data/images',
+  UPLOADS_ROOT: process.env.ADMIN_UPLOADS_ROOT || '/data/uploads',
+  DELETE_IMAGES_ROOT: process.env.ADMIN_DELETE_IMAGES_ROOT || '/data/cleanup-images',
+  DELETE_UPLOADS_ROOT: process.env.ADMIN_DELETE_UPLOADS_ROOT || '/data/cleanup-uploads',
+  BACKUP_ROOT: process.env.ADMIN_BACKUP_ROOT || '/data/backups',
 };
 

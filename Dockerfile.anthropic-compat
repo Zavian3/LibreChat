@@ -1,0 +1,4 @@
+FROM ghcr.io/danny-avila/librechat-dev:latest
+
+COPY scripts/patch-anthropic-adaptive-thinking.cjs /tmp/patch-anthropic-adaptive-thinking.cjs
+RUN node /tmp/patch-anthropic-adaptive-thinking.cjs

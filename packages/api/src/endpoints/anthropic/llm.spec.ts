@@ -910,6 +910,21 @@ describe('getLLMConfig', () => {
         expect(result.llmConfig.maxTokens).toBe(32000);
       });
 
+      it.each(['claude-opus-4-8', 'claude-opus-5', 'claude-sonnet-5'])(
+        'uses adaptive thinking for %s',
+        (model) => {
+          const result = getLLMConfig('test-key', {
+            modelOptions: {
+              model,
+              thinking: true,
+              thinkingBudget: 10000,
+            },
+          });
+
+          expect(result.llmConfig.thinking).toEqual({ type: 'adaptive' });
+        },
+      );
+
       it('should respect model-specific maxOutputTokens for Claude 4.x models', () => {
         const testCases = [
           { model: 'claude-sonnet-4-5', maxOutputTokens: 50000, expected: 50000 },

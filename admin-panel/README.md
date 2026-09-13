@@ -4,26 +4,34 @@ A comprehensive web-based admin dashboard for managing LibreChat's MongoDB datab
 
 ## Features
 
-- View all database collections and documents
-- Real-time statistics and overview
-- Full CRUD operations (Create, Read, Update, Delete)
-- Search functionality
-- Pagination support
-- User-friendly interface
-- Authentication system
+- Transaction-ledger usage and cost reporting (including full prompt context and title calls)
+- User, balance, conversation, message, file, and transaction views
+- Date ranges, search, user filters, sortable columns, and newest-first pagination
+- In-browser previews for images, PDFs, and text files
+- Balance top-ups and auto-refill settings
+- Cascading user deletion and backed-up orphan cleanup
+- Overview KPIs, daily usage chart, responsive layout, and dark mode
+- Rate-limited authentication with hashed credentials and server-side sessions
 
 ## Installation & Setup
 
 ### Option 1: Docker (Recommended)
 
 1. Make sure LibreChat's MongoDB container is running
-2. From the admin-panel directory:
+2. Create the environment file and set secure credentials:
 
 ```bash
-docker-compose up -d
+cp .env.example .env
+# Generate ADMIN_PASSWORD_HASH and ADMIN_SESSION_SECRET as described in .env.example
 ```
 
-3. Access the panel at `http://localhost:3001`
+3. From the admin-panel directory:
+
+```bash
+docker compose up -d --build
+```
+
+4. Access the panel at `http://localhost:3001`
 
 ### Option 2: Standalone
 
@@ -54,13 +62,6 @@ npm run dev
 
 4. Access the panel at `http://localhost:3001`
 
-## Default Credentials
-
-- Username: `admin`
-- Password: `admin123`
-
-**IMPORTANT**: Change these credentials in production by updating the `.env` file!
-
 ## Configuration
 
 Edit the `.env` file to configure:
@@ -68,8 +69,12 @@ Edit the `.env` file to configure:
 - `ADMIN_PORT`: Port for the admin panel (default: 3001)
 - `MONGO_URI`: MongoDB connection string
 - `ADMIN_USERNAME`: Admin username
-- `ADMIN_PASSWORD`: Admin password
+- `ADMIN_PASSWORD_HASH`: bcrypt hash of the admin password (plaintext is never configured)
 - `ADMIN_SESSION_SECRET`: Session encryption key
+- `COOKIE_SECURE`: Use secure cookies; keep `true` behind HTTPS
+- `ADMIN_IMAGES_ROOT` / `ADMIN_UPLOADS_ROOT`: Read-only preview mounts
+- `ADMIN_DELETE_IMAGES_ROOT` / `ADMIN_DELETE_UPLOADS_ROOT`: cleanup mounts
+- `ADMIN_BACKUP_ROOT`: EJSON backup location for maintenance cleanup
 
 ## Database Collections
 
@@ -100,33 +105,27 @@ The admin panel provides access to all LibreChat collections:
 3. Browse through documents with pagination
 4. Use the search bar to filter results
 
-### Creating Documents
+### Orphan cleanup
 
-1. Select a collection
-2. Click "Add Document"
-3. Enter valid JSON
-4. Click "Save"
+The Maintenance page reports records whose user no longer exists. Cleanup always writes
+an EJSON backup before deleting records and stored files.
 
-### Editing Documents
+The same workflow is available from the command line:
 
-1. Click "Edit" on any document
-2. Modify the JSON
-3. Click "Save"
-
-### Deleting Documents
-
-1. Click "Delete" on any document
-2. Confirm the action
+```bash
+npm run cleanup:orphans                     # dry run
+npm run cleanup:orphans -- --apply           # backup and clean
+npm run cleanup:orphans -- --apply --keep-transactions
+```
 
 ## Security Notes
 
-1. This admin panel has full access to your database
-2. Always change default credentials
-3. Use strong passwords
-4. Consider adding IP restrictions
-5. Use HTTPS in production
-6. Keep the admin panel behind a firewall or VPN
-7. Regularly review access logs
+1. This admin panel has privileged access to your database and stored files
+2. Use a unique password and rotate the session secret periodically
+3. Keep `COOKIE_SECURE=true` and terminate HTTPS at the reverse proxy
+4. Restrict access by IP, VPN, or identity-aware proxy
+5. Back up the database and the `admin-panel/backups` directory
+6. Review structured `admin_mutation` logs
 
 ## Troubleshooting
 
@@ -139,7 +138,7 @@ The admin panel provides access to all LibreChat collections:
 
 ### Login not working
 
-- Check credentials in .env file
+- Check `ADMIN_USERNAME` and `ADMIN_PASSWORD_HASH` in `.env`
 - Clear browser cookies/cache
 - Check server logs
 
@@ -158,10 +157,10 @@ The admin panel is built with:
 
 To modify:
 
-- Backend: Edit `server.js`
+- Backend: Edit `server-v2.js`
 - Frontend HTML: Edit `public/index.html`
-- Frontend CSS: Edit `public/css/styles.css`
-- Frontend JS: Edit `public/js/app.js`
+- Frontend CSS: Edit `public/css/dashboard.css`
+- Frontend JS: Edit `public/js/dashboard.js`
 
 ## License
 

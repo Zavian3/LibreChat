@@ -1,20 +1,26 @@
-version: '3.8'
-
 services:
   admin-panel:
     build: .
     container_name: librechat-admin-panel
     ports:
       - "3001:3001"
-    environment:
-      - ADMIN_PORT=3001
-      - MONGO_URI=mongodb://chat-mongodb:27017/LibreChat
-      - ADMIN_USERNAME=ai-noreply@180marketing.com
-      - ADMIN_PASSWORD=ccTvg7dvbF1RhO
-      - ADMIN_SESSION_SECRET=librechat-admin-panel-secret-key-2024
+    env_file:
+      - .env
+    volumes:
+      - ../images:/data/images:ro
+      - ../uploads:/data/uploads:ro
+      - ../images:/data/cleanup-images
+      - ../uploads:/data/cleanup-uploads
+      - ./backups:/data/backups
     networks:
       - librechat_default
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
 networks:
   librechat_default:
