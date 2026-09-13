@@ -82,6 +82,9 @@ function configureReasoning(
 ): AnthropicClientOptions & { max_tokens?: number } {
   const updatedOptions = { ...anthropicInput };
   const currentMaxTokens = updatedOptions.max_tokens ?? updatedOptions.maxTokens;
+  const usesAdaptiveThinking =
+    updatedOptions.model != null &&
+    /claude-(?:sonnet|opus)-(?:4-[6-9]|[5-9])(?:[.-]|$)/.test(updatedOptions.model);
 
   if (
     extendedOptions.thinking &&
@@ -89,10 +92,22 @@ function configureReasoning(
     (/claude-3[-.]7/.test(updatedOptions.model) ||
       /claude-(?:sonnet|opus|haiku)-[4-9]/.test(updatedOptions.model))
   ) {
-    updatedOptions.thinking = {
-      ...updatedOptions.thinking,
-      type: 'enabled',
-    } as { type: 'enabled'; budget_tokens: number };
+    if (usesAdaptiveThinking) {
+      /**
+       * Anthropic's newer Claude Sonnet/Opus releases reject the legacy
+       * `thinking: { type: 'enabled', budget_tokens }` request shape.
+       * Adaptive thinking preserves the default thinking behavior while
+       * allowing Anthropic to select the required thinking budget.
+       */
+      (updatedOptions as unknown as { thinking?: { type: string } }).thinking = {
+        type: 'adaptive',
+      };
+    } else {
+      updatedOptions.thinking = {
+        ...updatedOptions.thinking,
+        type: 'enabled',
+      } as { type: 'enabled'; budget_tokens: number };
+    }
   }
 
   if (

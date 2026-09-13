@@ -1,153 +1,239 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LibreChat Admin Panel</title>
-    <!-- Multiple favicon formats for better browser compatibility -->
-    <link rel="icon" href="/favicon.ico?v=4">
-    <link rel="shortcut icon" href="/favicon.ico?v=4">
-    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=4">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon.ico?v=4">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico?v=4">
-    <link rel="stylesheet" href="/css/styles.css">
-    <link rel="stylesheet" href="/css/balance-modals.css">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>LibreChat Admin</title>
+    <link rel="icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/css/dashboard.css?v=20260913b">
+    <script src="/js/dashboard.js?v=20260913b" defer></script>
 </head>
 <body>
-    <!-- Login Screen -->
-    <div id="login-screen" class="screen active">
-        <div class="login-container">
-            <div class="login-box">
-                <h1>LibreChat Admin Panel</h1>
-                <form id="login-form">
-                    <div class="form-group">
-                        <label for="username">Username</label>
-                        <input type="text" id="username" name="username" required autocomplete="username">
-                    </div>
-                    <div class="form-group">
-                        <label for="password">Password</label>
-                        <input type="password" id="password" name="password" required autocomplete="current-password">
-                    </div>
-                    <button type="submit" class="btn btn-primary">Login</button>
-                    <div id="login-error" class="error-message"></div>
-                </form>
+    <section id="login-screen" class="login-screen">
+        <div class="login-card">
+            <div class="brand brand-login">
+                <span class="brand-mark">L</span>
+                <div><strong>LibreChat</strong><small>Administration</small></div>
             </div>
+            <h1>Welcome back</h1>
+            <p class="muted">Sign in to manage usage, users, balances, and files.</p>
+            <form id="login-form">
+                <label for="username">Email</label>
+                <input id="username" name="username" type="email" autocomplete="username" required>
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" required>
+                <p id="login-error" class="form-error" role="alert"></p>
+                <button class="button button-primary button-block" type="submit">Sign in</button>
+            </form>
         </div>
-    </div>
+    </section>
 
-    <!-- Dashboard Screen -->
-    <div id="dashboard-screen" class="screen">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <h1>LibreChat Admin Panel</h1>
-                <div class="header-actions">
-                    <span id="admin-username" class="username"></span>
-                    <button id="logout-btn" class="btn btn-secondary">Logout</button>
+    <div id="app-screen" class="app-shell hidden">
+        <header class="topbar">
+            <div class="topbar-left">
+                <button id="menu-button" class="icon-button sidebar-button" type="button" aria-label="Collapse navigation" aria-expanded="true">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+                <div class="brand">
+                    <span class="brand-mark">L</span>
+                    <div><strong>LibreChat</strong><small>Admin</small></div>
                 </div>
+            </div>
+            <div class="topbar-actions">
+                <button id="theme-button" class="icon-button" type="button" aria-label="Toggle dark mode">Theme</button>
+                <span id="admin-username" class="admin-name"></span>
+                <button id="logout-button" class="button button-quiet" type="button">Log out</button>
             </div>
         </header>
 
-        <!-- Main Content -->
-        <div class="main-container">
-            <!-- Sidebar -->
-            <aside class="sidebar">
-                <nav class="sidebar-nav">
-                    <div class="nav-section">
-                        <div class="nav-section-title">Collections</div>
-                        <div id="collections-list" class="collections-list">
-                            <div class="loading">Loading collections...</div>
-                        </div>
-                    </div>
-                </nav>
-            </aside>
+        <aside id="sidebar" class="sidebar">
+            <nav aria-label="Main navigation">
+                <p class="nav-label">Workspace</p>
+                <button class="nav-link active" type="button" data-view="overview" title="Overview">
+                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect></svg>
+                    <span class="nav-text">Overview</span>
+                </button>
+                <button class="nav-link" type="button" data-view="users" title="Users">
+                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    <span class="nav-text">Users</span>
+                </button>
+                <button class="nav-link" type="button" data-view="balances" title="Balances">
+                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v13H3z"></path><path d="M3 9h18M16 14h2"></path></svg>
+                    <span class="nav-text">Balances</span>
+                </button>
+                <button class="nav-link" type="button" data-view="conversations" title="Conversations">
+                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"></path></svg>
+                    <span class="nav-text">Conversations</span>
+                </button>
+                <button class="nav-link" type="button" data-view="messages" title="Messages">
+                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v12H7l-3 3z"></path><path d="M8 8h8M8 12h5"></path></svg>
+                    <span class="nav-text">Messages</span>
+                </button>
+                <button class="nav-link" type="button" data-view="files" title="Files">
+                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l4 4v16H6z"></path><path d="M14 2v5h5M9 12h6M9 16h6"></path></svg>
+                    <span class="nav-text">Files</span>
+                </button>
+                <button class="nav-link" type="button" data-view="transactions" title="Transactions">
+                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h12l-3-3M17 17H5l3 3"></path><path d="M19 7l-3 3M5 17l3-3"></path></svg>
+                    <span class="nav-text">Transactions</span>
+                </button>
+                <button class="nav-link" type="button" data-view="maintenance" title="Maintenance">
+                    <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a2 2 0 0 0 .4 2.2l.1.1-2.6 2.6-.1-.1a2 2 0 0 0-2.2-.4 2 2 0 0 0-1.2 1.8V21h-3.6v-.2A2 2 0 0 0 9 19a2 2 0 0 0-2.2.4l-.1.1-2.6-2.6.1-.1A2 2 0 0 0 4.6 15 2 2 0 0 0 2.8 13H2V9h.8A2 2 0 0 0 4.6 7a2 2 0 0 0-.4-2.2l-.1-.1 2.6-2.6.1.1A2 2 0 0 0 9 2.6 2 2 0 0 0 10.2.8V1h3.6v-.2A2 2 0 0 0 15 2.6a2 2 0 0 0 2.2-.4l.1-.1 2.6 2.6-.1.1a2 2 0 0 0-.4 2.2 2 2 0 0 0 1.8 1.2h.8v4h-.8a2 2 0 0 0-1.8 1.8z"></path></svg>
+                    <span class="nav-text">Maintenance</span>
+                </button>
+                <button id="collections-toggle" class="nav-section-toggle" type="button" aria-expanded="true">
+                    <span class="nav-section-label">
+                        <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"></ellipse><path d="M4 5v7c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12v7c0 1.7 3.6 3 8 3s8-1.3 8-3v-7"></path></svg>
+                        <span class="nav-text">Other collections</span>
+                    </span>
+                    <svg class="chevron-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+                </button>
+                <div id="collections-list" class="collections-list"></div>
+            </nav>
+        </aside>
 
-            <!-- Content Area -->
-            <main class="content">
-                <!-- Collection View -->
-                <div id="collection-view" class="view active">
-                    <div class="view-header">
-                        <h2 id="collection-title">Collection</h2>
-                        <div class="view-actions">
-                            <select id="time-period-filter" class="filter-select" style="display:none;">
-                                <option value="24hours">Last 24 Hours</option>
-                                <option value="30days" selected>Last 30 Days</option>
-                                <option value="90days">Last 90 Days</option>
-                            </select>
-                            <select id="user-name-filter" class="filter-select" style="display:none;">
-                                <option value="">All Users</option>
-                            </select>
-                            <select id="conversation-id-filter" class="filter-select" style="display:none;">
-                                <option value="">All Conversations</option>
-                            </select>
-                            <input type="text" id="search-input" class="search-input" placeholder="Search...">
-                        </div>
+        <main class="main-content">
+            <section id="overview-view" class="view">
+                <div class="page-heading">
+                    <div>
+                        <p class="eyebrow">Workspace health</p>
+                        <h1>Overview</h1>
+                        <p class="muted">Authoritative usage from LibreChat transactions.</p>
                     </div>
-                    
-                    <div class="table-container">
-                        <table class="data-table" id="documents-table">
-                            <thead>
-                                <tr id="table-headers">
-                                    <th>ID</th>
-                                    <th>Data</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="documents-tbody">
-                                <tr>
-                                    <td colspan="3" class="loading">Select a collection</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="pagination" id="pagination">
-                        <button id="prev-page" class="btn btn-secondary" disabled>Previous</button>
-                        <span id="page-info">Page 1 of 1</span>
-                        <button id="next-page" class="btn btn-secondary" disabled>Next</button>
+                    <div class="date-toolbar" data-date-scope="overview">
+                        <select id="overview-range" aria-label="Date range">
+                            <option value="7">Last 7 days</option>
+                            <option value="30" selected>Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                            <option value="all">All time</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                        <input id="overview-start" type="date" aria-label="Start date">
+                        <span>to</span>
+                        <input id="overview-end" type="date" aria-label="End date">
+                        <button id="overview-apply" class="button button-secondary" type="button">Apply</button>
                     </div>
                 </div>
-            </main>
+                <div id="kpi-grid" class="kpi-grid" aria-live="polite"></div>
+                <div class="panel chart-panel">
+                    <div class="panel-heading">
+                        <div><h2>Usage cost</h2><p class="muted">Daily billed cost, including message and title calls</p></div>
+                        <span class="source-badge">transactions</span>
+                    </div>
+                    <div id="usage-chart" class="chart-container"></div>
+                </div>
+                <div class="panel hot-models-panel">
+                    <div class="panel-heading">
+                        <div><h2>Hot models</h2><p class="muted">Most-used chat models across the team for this date range</p></div>
+                        <span class="source-badge">message calls</span>
+                    </div>
+                    <div id="hot-models" class="hot-models" aria-live="polite"></div>
+                </div>
+            </section>
+
+            <section id="data-view" class="view hidden">
+                <div class="page-heading">
+                    <div>
+                        <p id="data-eyebrow" class="eyebrow">Data</p>
+                        <h1 id="data-title">Users</h1>
+                        <p id="data-description" class="muted"></p>
+                    </div>
+                    <div class="date-toolbar" data-date-scope="data">
+                        <select id="data-range" aria-label="Date range">
+                            <option value="7">Last 7 days</option>
+                            <option value="30" selected>Last 30 days</option>
+                            <option value="90">Last 90 days</option>
+                            <option value="all">All time</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                        <input id="data-start" type="date" aria-label="Start date">
+                        <span>to</span>
+                        <input id="data-end" type="date" aria-label="End date">
+                        <button id="data-apply" class="button button-secondary" type="button">Apply</button>
+                    </div>
+                </div>
+                <div class="filter-bar">
+                    <div class="search-wrap">
+                        <label class="sr-only" for="search-input">Search</label>
+                        <input id="search-input" type="search" placeholder="Search this page">
+                    </div>
+                    <select id="user-filter" aria-label="Filter by user">
+                        <option value="">All users</option>
+                    </select>
+                    <span id="result-count" class="result-count"></span>
+                </div>
+                <div class="table-card">
+                    <div class="table-scroll">
+                        <table class="data-table">
+                            <thead><tr id="table-head"></tr></thead>
+                            <tbody id="table-body"></tbody>
+                        </table>
+                    </div>
+                    <div class="pagination">
+                        <button id="previous-page" class="button button-secondary" type="button">Previous</button>
+                        <span id="page-info"></span>
+                        <label class="page-size-label" for="page-size">Rows per page</label>
+                        <select id="page-size" aria-label="Rows per page">
+                            <option value="20" selected>20</option>
+                            <option value="40">40</option>
+                            <option value="60">60</option>
+                            <option value="100">100</option>
+                        </select>
+                        <button id="next-page" class="button button-secondary" type="button">Next</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="maintenance-view" class="view hidden">
+                <div class="page-heading">
+                    <div>
+                        <p class="eyebrow">Database hygiene</p>
+                        <h1>Maintenance</h1>
+                        <p class="muted">Find records left behind by previously deleted users.</p>
+                    </div>
+                    <button id="rescan-orphans" class="button button-secondary" type="button">Rescan</button>
+                </div>
+                <div class="maintenance-grid">
+                    <div class="panel">
+                        <div class="panel-heading">
+                            <div><h2>Orphaned records</h2><p class="muted">A backup is always created before cleanup.</p></div>
+                        </div>
+                        <div id="orphan-report" class="orphan-report"></div>
+                    </div>
+                    <div class="panel danger-panel">
+                        <h2>Clean orphaned data</h2>
+                        <p>Deletes balances, transactions, conversations, messages, files, sessions and other user-owned records whose user no longer exists.</p>
+                        <label class="checkbox-row"><input id="keep-transactions" type="checkbox"> Keep transactions for historical reporting</label>
+                        <label for="cleanup-confirmation">Type <strong>DELETE ORPHANED DATA</strong> to continue</label>
+                        <input id="cleanup-confirmation" type="text" autocomplete="off">
+                        <button id="cleanup-orphans" class="button button-danger" type="button">Back up and clean</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal-card">
+            <header><h2 id="modal-title">Details</h2><button class="icon-button" data-close-modal type="button">Close</button></header>
+            <div id="modal-body" class="modal-body"></div>
+            <footer id="modal-footer"><button class="button button-secondary" data-close-modal type="button">Close</button></footer>
         </div>
     </div>
 
-    <!-- Modal for View/Edit/Add Document -->
-    <div id="document-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modal-title">View Document</h2>
-                <button class="close-btn" id="close-modal">&times;</button>
-            </div>
-            <div class="modal-body">
-                <textarea id="document-editor" class="document-editor" rows="20"></textarea>
-                <div id="modal-error" class="error-message"></div>
-            </div>
-            <div class="modal-footer">
-                <button id="cancel-btn" class="btn btn-secondary">Cancel</button>
-                <button id="save-btn" class="btn btn-primary">Save</button>
-                <button id="delete-btn" class="btn btn-danger" style="display:none;">Delete</button>
-            </div>
+    <div id="confirm-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <div class="modal-card modal-small">
+            <header><h2 id="confirm-title">Confirm action</h2></header>
+            <div class="modal-body"><p id="confirm-message"></p></div>
+            <footer>
+                <button class="button button-secondary" data-close-confirm type="button">Cancel</button>
+                <button id="confirm-action" class="button button-danger" type="button">Confirm</button>
+            </footer>
         </div>
     </div>
 
-    <!-- Confirmation Modal -->
-    <div id="confirm-modal" class="modal">
-        <div class="modal-content modal-small">
-            <div class="modal-header">
-                <h2>Confirm Action</h2>
-            </div>
-            <div class="modal-body">
-                <p id="confirm-message">Are you sure?</p>
-            </div>
-            <div class="modal-footer">
-                <button id="confirm-cancel" class="btn btn-secondary">Cancel</button>
-                <button id="confirm-ok" class="btn btn-danger">Confirm</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="/js/app.js"></script>
-    <script src="/js/balance-modals.js"></script>
+    <div id="toast-region" class="toast-region" aria-live="polite"></div>
 </body>
 </html>
 
