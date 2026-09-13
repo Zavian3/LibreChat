@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balance Management - LibreChat Admin</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 Balance Management</h1>
+            <button onclick="window.location.href='/'" class="btn-secondary">← Back to Dashboard</button>
+            <button onclick="logout()" class="btn-danger">Logout</button>
+        </header>
+
+        <div class="controls">
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Search by name or email..." />
+                <button onclick="searchUsers()" class="btn-primary">Search</button>
+            </div>
+            <button onclick="refreshBalances()" class="btn-primary">🔄 Refresh</button>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr id="table-headers">
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Current Balance</th>
+                        <th>Auto-Refill</th>
+                        <th>Refill Amount</th>
+                        <th>Last Refill</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="balances-tbody">
+                    <tr><td colspan="7" class="loading">Loading balances...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination" id="pagination-controls">
+            <!-- Pagination will be inserted here -->
+        </div>
+    </div>
+
+    <!-- Top-Up Modal -->
+    <div id="topup-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeTopUpModal()">&times;</span>
+            <h2>Top Up Balance</h2>
+            <div id="topup-form">
+                <p><strong>User:</strong> <span id="topup-user-name"></span></p>
+                <p><strong>Email:</strong> <span id="topup-user-email"></span></p>
+                <p><strong>Current Balance:</strong> <span id="topup-current-balance"></span></p>
+                
+                <div class="form-group">
+                    <label for="topup-amount">Top-Up Amount (tokenCredits):</label>
+                    <input type="number" id="topup-amount" placeholder="e.g., 1000000 for $1" step="1000" min="0">
+                    <small>1,000,000 tokenCredits = $1 USD</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="topup-reason">Reason (optional):</label>
+                    <input type="text" id="topup-reason" placeholder="e.g., Monthly refill, Special grant">
+                </div>
+
+                <div class="modal-actions">
+                    <button onclick="executeTopUp()" class="btn-primary">💵 Add Credits</button>
+                    <button onclick="closeTopUpModal()" class="btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auto-Refill Settings Modal -->
+    <div id="refill-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeRefillModal()">&times;</span>
+            <h2>Auto-Refill Settings</h2>
+            <div id="refill-form">
+                <p><strong>User:</strong> <span id="refill-user-name"></span></p>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="refill-enabled">
+                        Enable Auto-Refill
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label for="refill-amount">Refill Amount (tokenCredits):</label>
+                    <input type="number" id="refill-amount" placeholder="e.g., 6000000" step="1000" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label for="refill-interval">Refill Every:</label>
+                    <input type="number" id="refill-interval-value" placeholder="30" min="1" style="width: 80px;">
+                    <select id="refill-interval-unit">
+                        <option value="days">Days</option>
+                        <option value="weeks">Weeks</option>
+                        <option value="months">Months</option>
+                    </select>
+                </div>
+
+                <div class="modal-actions">
+                    <button onclick="saveRefillSettings()" class="btn-primary">💾 Save Settings</button>
+                    <button onclick="closeRefillModal()" class="btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/balance-management.js"></script>
+</body>
+</html>
